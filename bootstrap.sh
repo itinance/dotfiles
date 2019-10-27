@@ -11,7 +11,11 @@ function doIt() {
 		--exclude "bootstrap.sh" \
 		--exclude "README.md" \
 		--exclude "LICENSE-MIT.txt" \
+		--exclude "knife_bash_completion.sh" \
+		--exclude "*.sublime*" \
+		--exclude ".gitkeep" \
 		-avh --no-perms . ~;
+	sed -i 's/tab/space/' ~/.editorconfig
 	source ~/.bash_profile;
 }
 

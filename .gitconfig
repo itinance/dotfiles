@@ -1,10 +1,10 @@
 [alias]
 
-	# View abbreviated SHA, description, and history graph of the latest 20 commits
-	l = log --pretty=oneline -n 20 --graph --abbrev-commit
+	# View abbreviated SHA, description, and history graph
+	l = log --graph --abbrev-commit --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'
 
-	# View the current working tree status using the short format
-	s = status -s
+	# Same as above, but with every branch
+	la = log --graph --abbrev-commit --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --branches --remotes
 
 	# Show the diff between the latest commit and the current state
 	d = !"git diff-index --quiet HEAD -- || clear; git --no-pager diff --patch-with-stat"
@@ -13,10 +13,10 @@
 	di = !"d() { git diff --patch-with-stat HEAD~$1; }; git diff-index --quiet HEAD -- || clear; d"
 
 	# Pull in remote changes for the current repository and all its submodules
-	p = !"git pull; git submodule foreach git pull origin master"
+	p = git pull --recurse-submodules
 
 	# Clone a repository including all submodules
-	c = clone --recursive
+	cl = clone --recursive
 
 	# Commit all changes
 	ca = !git add -A && git commit -av
@@ -56,9 +56,31 @@
 	# Find commits by commit message
 	fm = "!f() { git log --pretty=format:'%C(yellow)%h  %Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short --grep=$1; }; f"
 
-	# Remove branches that have already been merged with master
+	# Remove branches that have already been merged with master, without deleting master
 	# a.k.a. ‘delete merged’
-	dm = "!git branch --merged | grep -v '\\*' | xargs -n 1 git branch -d"
+	dm = "!git branch --merged | grep -v '^\\*\\|master\\|production\\|develop' | xargs -n 1 git branch -d"
+
+	# Undo a `git push`
+	undopush = push -f origin HEAD^:master
+
+	# Sort branches & tags by last commit
+	brbylast = for-each-ref --sort=-committerdate --format='%(committerdate:short) %(refname:short) [%(committername)]'
+
+	# Various other shorthands
+	s = status
+	c = commit
+	b = branch
+	co = checkout
+	cb = checkout -b
+	m = merge
+	d = diff
+	dc = diff --cached
+	lg = log -p
+	lol = log --graph --decorate --pretty=oneline --abbrev-commit
+	lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+	ls = ls-files
+	sta = stash
+	ksreview = "!f() { local SHA=${1:-HEAD}; local BRANCH=${2:-master}; if [ $SHA == $BRANCH ]; then SHA=HEAD; fi; git difftool -y -t Kaleidoscope $BRANCH...$SHA; }; f"
 
 	# List contributors with number of commits
 	contributors = shortlog --summary --numbered
@@ -82,7 +104,7 @@
 [apply]
 
 	# Detect whitespace errors when applying a patch
-	whitespace = fix
+	whitespace = warn
 
 [core]
 
@@ -90,10 +112,8 @@
 	excludesfile = ~/.gitignore
 	attributesfile = ~/.gitattributes
 
-	# Treat spaces before tabs and all kinds of trailing whitespace as an error
-	# [default] trailing-space: looks for spaces at the end of a line
-	# [default] space-before-tab: looks for spaces before tabs at the beginning of a line
-	whitespace = space-before-tab,-indent-with-non-tab,trailing-space
+	# Treat all kinds of trailing whitespace as an error.
+	whitespace = trailing-space
 
 	# Make `git rebase` safer on macOS
 	# More info: <http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/>
@@ -125,12 +145,14 @@
 	frag = magenta bold # line info
 	old = red # deletions
 	new = green # additions
+	whitespace = white reverse
 
 [color "status"]
 
 	added = yellow
 	changed = green
 	untracked = cyan
+	branch = magenta
 
 [commit]
 
@@ -141,11 +163,27 @@
 
 	# Detect copies as well as renames
 	renames = copies
+	tool = diffmerge
+	# Enable an experimental heuristic that shifts the hunk boundary in an
+	# attempt to make the resulting patch easier to read.
+	indentHeuristic = true
 
 [diff "bin"]
 
 	# Use `hexdump` to diff binary files
 	textconv = hexdump -v -C
+
+[difftool]
+
+	prompt = false
+
+[difftool "Kaleidoscope"]
+
+	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
+
+[difftool "diffmerge"]
+
+	cmd = diffmerge \"$LOCAL\" \"$REMOTE\"
 
 [help]
 
@@ -156,6 +194,32 @@
 
 	# Include summaries of merged commits in newly created merge commit messages
 	log = true
+	tool = diffmerge
+
+[mergetool]
+
+	keepBackup = false
+	prompt = false
+
+[mergetool "diffmerge"]
+
+	cmd = diffmerge --merge --result=\"$MERGED\" \"$LOCAL\" \"$BASE\" \"$REMOTE\"
+	trustExitCode = true
+
+[mergetool "sourcetree"]
+
+	cmd = /Applications/SourceTree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+	trustExitCode = true
+
+[mergetool "Kaleidoscope"]
+
+	cmd = ksdiff --merge --output \"$MERGED\" --base \"$BASE\" -- \"$LOCAL\" --snapshot \"$REMOTE\" --snapshot
+	trustExitCode = true
+
+# Use `origin` as the default remote on the `master` branch in all cases
+# [branch "master"]
+# 	remote = origin
+# 	merge = refs/heads/master
 
 [push]
 
@@ -185,3 +249,13 @@
 [url "git://gist.github.com/"]
 
 	insteadOf = "gist:"
+
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	required = true
+	process = git-lfs filter-process
+
+[pager]
+	diff = diff-so-fancy | less --tabs=1,5 -RFX
+	show = diff-so-fancy | less --tabs=1,5 -RFX

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+declare -a packages=(
+	"pip"
+	"setuptools"
+	"wheel"
+	"black"
+	"flake8"
+	"git-sweep"
+	"pycodestyle"
+	"pyflakes"
+	"tabfix"
+)
+
+for pkg in "${packages[@]}"
+do
+	pip3 install --upgrade "$pkg"
+done

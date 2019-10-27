@@ -50,10 +50,10 @@ syn match   jsonBraces   "[{}\[\]]"
 " For version 5.8 and later: only when an item doesn't have highlighting yet
 if version >= 508 || !exists("did_json_syn_inits")
   if version < 508
-    let did_json_syn_inits = 1
-    command -nargs=+ HiLink hi link <args>
+	let did_json_syn_inits = 1
+	command -nargs=+ HiLink hi link <args>
   else
-    command -nargs=+ HiLink hi def link <args>
+	command -nargs=+ HiLink hi def link <args>
   endif
   HiLink jsonString      String
   HiLink jsonEscape      Special
